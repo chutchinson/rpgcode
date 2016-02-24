@@ -55,6 +55,7 @@ public enum TokenKind {
   ASSIGN_SHIFT_LEFT,
   ASSIGN_SHIFT_RIGHT,
 
+  COMMA,
   COLON,
   PAREN_LEFT,
   PAREN_RIGHT,

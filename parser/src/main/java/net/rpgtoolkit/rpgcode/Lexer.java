@@ -75,6 +75,10 @@ public class Lexer {
             break;
         }
         break;
+      case ',':
+        accept();
+        token.kind = TokenKind.COMMA;
+        break;
       case ':':
         accept();
         token.kind = TokenKind.COLON;
