@@ -7,10 +7,40 @@
  */
 package net.rpgtoolkit.rpgcode.ir;
 
+import net.rpgtoolkit.rpgcode.ir.expressions.*;
+
+import net.rpgtoolkit.rpgcode.ir.statements.*;
+
 public interface NodeVisitor {
 
-  void visit(Identifier node);
+  void visit(CompilationUnit node);
   void visit(Parameter node);
   void visit(FunctionDefinition node);
+  void visit(Block node);
+
+  // statements
+
+  void visit(ReturnStatement node);
+  void visit(ConditionalStatement node);
+  void visit(ExpressionStatement node);
+  void visit(LoopStatement node);
+  void visit(ForLoopStatement node);
+  void visit(FlowControlStatement node);
+
+  // expressions
+
+  void visit(Identifier node);
+  void visit(UnaryExpression node);
+  void visit(CallExpression node);
+  void visit(ConstantNumberExpression node);
+  void visit(ConstantStringExpression node);
+  void visit(ConstantBooleanExpression node);
+  void visit(AdditiveBinaryExpression node);
+  void visit(MultiplicativeBinaryExpression node);
+  void visit(RelationalBinaryExpression node);
+  void visit(ShiftBinaryExpression node);
+  void visit(LogicalBinaryExpression node);
+  void visit(BitwiseBinaryExpression node);
+  void visit(AssignmentExpression node);
 
 }

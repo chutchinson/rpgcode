@@ -7,7 +7,7 @@
  */
 package net.rpgtoolkit.rpgcode.ir;
 
-public class Identifier extends Node {
+public class Identifier implements Expression {
 
   private String value;
 
@@ -34,6 +34,11 @@ public class Identifier extends Node {
   @Override
   public void accept(NodeVisitor visitor) {
     visitor.visit(this);
+  }
+
+  @Override
+  public String toString() {
+    return this.value;
   }
 
 }

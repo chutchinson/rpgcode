@@ -7,8 +7,8 @@
  */
 package net.rpgtoolkit.rpgcode.ir;
 
-public abstract class Node {
+public interface Node {
 
-  public abstract void accept(final NodeVisitor visitor);
+  void accept(final NodeVisitor visitor);
 
 }

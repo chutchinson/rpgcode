@@ -7,7 +7,7 @@
  */
 package net.rpgtoolkit.rpgcode.ir;
 
-public class Parameter extends Node {
+public class Parameter implements Node {
 
   private Identifier name;
 

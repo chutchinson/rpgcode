@@ -7,6 +7,9 @@
  */
 package net.rpgtoolkit.rpgcode;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Lexical analyzer (lexer) for the RPGCode grammar.
  *
@@ -15,6 +18,7 @@ package net.rpgtoolkit.rpgcode;
 public class Lexer {
 
   private final LexerContext context;
+  private final Map<String, Integer> keywords;
   private String input;
 
   public Lexer(String input) {
@@ -28,6 +32,9 @@ public class Lexer {
     this.input = input;
     this.context = context;
     this.context.length = input.length();
+    this.keywords = new HashMap<>();
+    this.keywords.put("function", Keywords.FUNCTION);
+    this.keywords.put("method", Keywords.FUNCTION);
   }
 
   public String lexeme(Token token) {
@@ -60,7 +67,7 @@ public class Lexer {
         break;
       case ';':
         accept();
-        token.kind = TokenKind.EOL;
+        token.kind = TokenKind.SEMICOLON;
         break;
       case '!':
         accept();
@@ -329,6 +336,8 @@ public class Lexer {
         }
         break;
     }
+
+    // compute token length
 
     token.length = this.context.offset - token.offset;
 

@@ -10,10 +10,11 @@ package net.rpgtoolkit.rpgcode.ir;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FunctionDefinition extends Node {
+public class FunctionDefinition implements Node {
 
   private Identifier name;
   private List<Parameter> parameters;
+  private Block body;
 
   public FunctionDefinition(Identifier name) {
     if (name == null)
@@ -34,6 +35,14 @@ public class FunctionDefinition extends Node {
 
   public List<Parameter> getParameters() {
     return this.parameters;
+  }
+
+  public Block getBody() {
+    return this.body;
+  }
+
+  public void setBody(Block block) {
+    this.body = block;
   }
 
   @Override

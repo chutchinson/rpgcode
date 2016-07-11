@@ -57,6 +57,7 @@ public enum TokenKind {
 
   COMMA,
   COLON,
+  SEMICOLON,
   PAREN_LEFT,
   PAREN_RIGHT,
   BRACKET_LEFT,
