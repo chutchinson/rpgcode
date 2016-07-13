@@ -20,11 +20,15 @@ public class Keywords {
     public static final int CONTINUE = 16;
     public static final int IF = 17;
     public static final int ELSE = 18;
-    public static final int SWITCH = 19;
-    public static final int CASE = 20;
-    public static final int DEFAULT = 21;
-    public static final int NULL = 22;
-    public static final int TRUE = 23;
-    public static final int FALSE = 24;
+    public static final int ELSEIF = 19;
+    public static final int SWITCH = 20;
+    public static final int CASE = 21;
+    public static final int DEFAULT = 22;
+    public static final int NULL = 23;
+    public static final int TRUE = 24;
+    public static final int FALSE = 25;
+    public static final int INLINE = 26;
+    public static final int AND = 27;
+    public static final int OR = 28;
 
 }

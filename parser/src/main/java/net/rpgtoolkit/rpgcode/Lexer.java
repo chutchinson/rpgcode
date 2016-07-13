@@ -33,12 +33,41 @@ public class Lexer {
     this.context = context;
     this.context.length = input.length();
     this.keywords = new HashMap<>();
+    this.keywords.put("class", Keywords.CLASS);
     this.keywords.put("function", Keywords.FUNCTION);
     this.keywords.put("method", Keywords.FUNCTION);
+    this.keywords.put("return", Keywords.RETURN);
+    this.keywords.put("public", Keywords.PUBLIC);
+    this.keywords.put("private", Keywords.PRIVATE);
+    this.keywords.put("protected", Keywords.PROTECTED);
+    this.keywords.put("var", Keywords.VAR);
+    this.keywords.put("do", Keywords.DO);
+    this.keywords.put("while", Keywords.WHILE);
+    this.keywords.put("until", Keywords.UNTIL);
+    this.keywords.put("loop", Keywords.LOOP);
+    this.keywords.put("for", Keywords.FOR);
+    this.keywords.put("break", Keywords.BREAK);
+    this.keywords.put("continue", Keywords.CONTINUE);
+    this.keywords.put("if", Keywords.IF);
+    this.keywords.put("else", Keywords.ELSE);
+    this.keywords.put("elseif", Keywords.ELSEIF);
+    this.keywords.put("switch", Keywords.SWITCH);
+    this.keywords.put("case", Keywords.CASE);
+    this.keywords.put("default", Keywords.DEFAULT);
+    this.keywords.put("null", Keywords.NULL);
+    this.keywords.put("true", Keywords.TRUE);
+    this.keywords.put("false", Keywords.FALSE);
+    this.keywords.put("inline", Keywords.INLINE);
+    this.keywords.put("and", Keywords.AND);
+    this.keywords.put("or", Keywords.OR);
   }
 
   public String lexeme(Token token) {
     return this.input.substring(token.offset, token.offset + token.length);
+  }
+
+  public String lexeme(int offset, int length) {
+    return this.input.substring(offset, offset + length);
   }
 
   public Token scan() {
@@ -61,9 +90,9 @@ public class Lexer {
         break;
       case '\n':
         accept();
+        token.kind = TokenKind.EOL;
         this.context.line++;
         this.context.column = 0;
-        token.kind = TokenKind.EOL;
         break;
       case ';':
         accept();
@@ -327,7 +356,7 @@ public class Lexer {
         this.string(token);
         break;
       default:
-        if (isIdentifier(this.context.ch)) {
+        if (isIdentifierStart(this.context.ch)) {
           this.identifier(token);
         } else if (isDigit(this.context.ch)) {
           this.number(token);
@@ -388,21 +417,64 @@ public class Lexer {
   }
 
   public void number(final Token token) {
+
     token.kind = TokenKind.NUMBER;
     lookahead();
+
+    if (this.context.ch == '0') {
+      accept();
+      lookahead();
+      if (this.context.ch != '.')
+        return;
+    }
+
     while (isDigit(this.context.ch)) {
       accept();
       lookahead();
     }
+
+    if (this.context.ch == '.') {
+      accept();
+      lookahead();
+      while (isDigit(this.context.ch)) {
+        accept();
+        lookahead();
+      }
+    }
+
   }
 
   public void identifier(final Token token) {
+
     token.kind = TokenKind.IDENTIFIER;
     lookahead();
-    while (isIdentifier(this.context.ch)) {
+    while (isIdentifierPart(this.context.ch)) {
       accept();
       lookahead();
     }
+
+    final String lexeme = lexeme(token.offset, context.offset - token.offset).toLowerCase();
+
+    // recognize registered keywords
+
+    final Integer keyword = keywords.get(lexeme);
+
+    if (keyword != null) {
+      token.kind = TokenKind.KEYWORD;
+      token.tag = keyword;
+    }
+
+    // recognize keyword operators
+
+    switch (token.tag) {
+      case Keywords.AND:
+        token.kind = TokenKind.AND_LOGICAL;
+        break;
+      case Keywords.OR:
+        token.kind = TokenKind.OR_LOGICAL;
+        break;
+    }
+
   }
 
   protected boolean isDigit(int ch) {
@@ -410,13 +482,15 @@ public class Lexer {
   }
 
   protected boolean isWhitespace(int ch) {
-    return (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n');
+    return (ch == ' ' || ch == '\f' || ch == '\t' || ch == '\r');
   }
 
-  protected boolean isIdentifier(int ch) {
-    return (ch >= 'a' && ch <= 'z')
-      || (ch >= 'A' && ch <= 'Z')
-      || (ch == '_') || (ch == '!') || (ch == '$');
+  protected boolean isIdentifierStart(int ch) {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch == '_');
+  }
+
+  protected boolean isIdentifierPart(int ch) {
+    return (ch >= 'a' && ch <='z') || (ch >= 'A' && ch <= 'Z') || (ch == '_') || (ch >= '0' && ch <= '9');
   }
 
 }

@@ -10,17 +10,50 @@ package net.rpgtoolkit.rpgcode.ir;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FunctionDefinition implements Node {
+public class FunctionDeclaration implements Node {
 
   private Identifier name;
   private List<Parameter> parameters;
   private Block body;
+  private Visibility visibility;
+  private boolean inline;
+  private boolean virtual;
+  private boolean pure;
 
-  public FunctionDefinition(Identifier name) {
+  public FunctionDeclaration(Identifier name) {
     if (name == null)
       throw new IllegalArgumentException();
     this.name = name;
     this.parameters = new ArrayList<>();
+    this.visibility = Visibility.PUBLIC;
+    this.inline = false;
+    this.pure = false;
+  }
+
+  public boolean getIsInline() {
+    return this.inline;
+  }
+
+  public void setIsInline(boolean value) {
+    this.inline = value;
+  }
+
+  public boolean getIsAbstract(boolean value) {
+    return this.pure;
+  }
+
+  public void setIsAbstract(boolean value) {
+    this.pure = value;
+  }
+
+  public Visibility getVisibility() {
+    return this.visibility;
+  }
+
+  public void setVisibility(Visibility visibility) {
+    if (visibility == null)
+      throw new IllegalArgumentException();
+    this.visibility = visibility;
   }
 
   public Identifier getName() {

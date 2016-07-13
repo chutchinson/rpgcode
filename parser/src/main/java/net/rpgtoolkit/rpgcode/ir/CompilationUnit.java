@@ -5,18 +5,20 @@ import java.util.List;
 
 public class CompilationUnit implements Node {
 
-    private final List<FunctionDefinition> functions;
+    private final List<ClassDeclaration> classes;
+    private final List<FunctionDeclaration> functions;
 
     public CompilationUnit() {
+        this.classes = new ArrayList<>();
         this.functions = new ArrayList<>();
     }
 
-    public List<FunctionDefinition> getFunctionDefinitions() {
-        return this.functions;
+    public List<ClassDeclaration> getClassDeclarations() {
+        return this.classes;
     }
 
-    public void registerFunction(FunctionDefinition fn) {
-        this.functions.add(fn);
+    public List<FunctionDeclaration> getFunctionDeclarations() {
+        return this.functions;
     }
 
     @Override

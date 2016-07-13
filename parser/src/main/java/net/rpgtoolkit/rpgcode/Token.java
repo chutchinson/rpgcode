@@ -15,6 +15,7 @@ package net.rpgtoolkit.rpgcode;
 public class Token {
 
   public TokenKind kind;
+  public int tag;
   public int offset;
   public int length;
   public int line;
@@ -26,6 +27,7 @@ public class Token {
 
   public final void reset() {
     this.kind = TokenKind.UNKNOWN;
+    this.tag = 0;
     this.offset = 0;
     this.length = 0;
     this.line = 0;

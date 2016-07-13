@@ -15,7 +15,9 @@ public interface NodeVisitor {
 
   void visit(CompilationUnit node);
   void visit(Parameter node);
-  void visit(FunctionDefinition node);
+  void visit(ClassDeclaration node);
+  void visit(ClassFieldDeclaration node);
+  void visit(FunctionDeclaration node);
   void visit(Block node);
 
   // statements
@@ -26,6 +28,7 @@ public interface NodeVisitor {
   void visit(LoopStatement node);
   void visit(ForLoopStatement node);
   void visit(FlowControlStatement node);
+  void visit(LabelStatement node);
 
   // expressions
 

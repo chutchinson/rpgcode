@@ -7,8 +7,7 @@ public class LogicalBinaryExpression extends BinaryExpression {
 
     public enum Operator {
         AND,
-        OR,
-        XOR
+        OR
     }
 
     private Operator op;

@@ -65,6 +65,7 @@ public enum TokenKind {
   BRACE_LEFT,
   BRACE_RIGHT,
 
+  KEYWORD,
   COMMENT,
   IDENTIFIER,
   STRING,
