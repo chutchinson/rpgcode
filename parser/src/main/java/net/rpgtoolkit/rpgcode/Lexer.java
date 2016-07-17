@@ -94,6 +94,10 @@ public class Lexer {
         this.context.line++;
         this.context.column = 0;
         break;
+      case '#':
+        accept();
+        token.kind = TokenKind.HASH;
+        break;
       case ';':
         accept();
         token.kind = TokenKind.SEMICOLON;
@@ -111,6 +115,10 @@ public class Lexer {
             break;
         }
         break;
+      case '$':
+        accept();
+        token.kind = TokenKind.DOLLAR;
+        break;
       case ',':
         accept();
         token.kind = TokenKind.COMMA;
@@ -121,7 +129,11 @@ public class Lexer {
         break;
       case '.':
         accept();
+        lookahead();
         token.kind = TokenKind.DOT;
+        if (isDigit(this.context.ch)) {
+          number(token);
+        }
         break;
       case '(':
         accept();
@@ -424,8 +436,9 @@ public class Lexer {
     if (this.context.ch == '0') {
       accept();
       lookahead();
-      if (this.context.ch != '.')
+      if (this.context.ch != '.') {
         return;
+      }
     }
 
     while (isDigit(this.context.ch)) {
@@ -436,10 +449,11 @@ public class Lexer {
     if (this.context.ch == '.') {
       accept();
       lookahead();
-      while (isDigit(this.context.ch)) {
-        accept();
-        lookahead();
-      }
+    }
+
+    while (isDigit(this.context.ch)) {
+      accept();
+      lookahead();
     }
 
   }

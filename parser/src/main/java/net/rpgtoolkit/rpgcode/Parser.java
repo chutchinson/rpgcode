@@ -20,6 +20,7 @@ public class Parser {
 
   private final Lexer lexer;
   private final LinkedList<Token> tokens;
+  private final Set<ParserListener> listeners;
 
   public Parser(Lexer lexer) {
 
@@ -29,7 +30,17 @@ public class Parser {
 
     this.lexer = lexer;
     this.tokens = new LinkedList<>();
+    this.listeners = new HashSet<>();
 
+  }
+
+  public void addListener(ParserListener listener) {
+    if (!listeners.contains(listener))
+      listeners.add(listener);
+  }
+
+  public void removeListener(ParserListener listener) {
+    listeners.remove(listener);
   }
 
   public CompilationUnit parse() {
@@ -109,6 +120,8 @@ public class Parser {
 
     while (!matchAny(TokenKind.BRACE_RIGHT, TokenKind.END)) {
 
+      skip();
+
       if (match(TokenKind.KEYWORD, Keywords.PUBLIC)) {
         currentVisibility = parseVisibilityLabel();
       }
@@ -131,9 +144,6 @@ public class Parser {
           field.setVisibility(currentVisibility);
           node.getFieldDeclarations().add(field);
         }
-      }
-      else if (matchAny(TokenKind.EOL, TokenKind.SEMICOLON)) {
-        accept();
       }
       else {
         error("unexpected token in class declaration");
@@ -251,6 +261,19 @@ public class Parser {
   }
 
   public Statement parseStatement() {
+
+    // parse comments from the ancient 2.x version of the grammar
+    // where asterisk starts a comment
+
+    if (match(TokenKind.MULTIPLY)) {
+      while (!matchAny(TokenKind.EOL, TokenKind.END)) {
+        accept();
+      }
+    }
+
+    // skip blank lines
+
+    skip();
 
     if (match(TokenKind.KEYWORD, Keywords.RETURN)) {
       return parseReturnStatement();
@@ -742,28 +765,62 @@ public class Parser {
 
     if (match(TokenKind.NUMBER)) {
       final Token token = accept();
+      final String lexeme = lexer.lexeme(token);
       return new ConstantNumberExpression(
               Double.parseDouble(lexer.lexeme(token)));
     }
 
-    if (match(TokenKind.IDENTIFIER)) {
-
-      final Identifier ident = parseIdentifier();
-
-      if (match(TokenKind.PAREN_LEFT)) {
-        return parseCallExpression(ident);
-      }
-
-      return ident;
-
+    if (matchAll(TokenKind.IDENTIFIER, TokenKind.PAREN_LEFT)) {
+      return parseCallExpression();
+    }
+    else if (matchAll(TokenKind.IDENTIFIER, TokenKind.BRACKET_LEFT)) {
+      return parseIndexExpression();
+    }
+    else if (matchAll(TokenKind.IDENTIFIER, TokenKind.INCREMENT)) {
+      return parsePostfixExpression();
+    }
+    else if (matchAll(TokenKind.IDENTIFIER, TokenKind.DECREMENT)) {
+      return parsePostfixExpression();
+    }
+    else if (match(TokenKind.IDENTIFIER)) {
+      return parseIdentifier();
     }
 
-    error("illegal expression");
+    error("unrecognized expression");
     return null;
 
   }
 
-  private CallExpression parseCallExpression(Identifier name) {
+  private Expression parsePostfixExpression() {
+
+    final Identifier lhs = parseIdentifier();
+
+    if (!matchAny(TokenKind.INCREMENT, TokenKind.DECREMENT)) {
+      return lhs;
+    }
+
+    final Token token = accept();
+    final PostfixExpression.Operator op;
+
+    switch (token.kind) {
+      case INCREMENT:
+        op = PostfixExpression.Operator.INCREMENT;
+        break;
+      case DECREMENT:
+        op = PostfixExpression.Operator.DECREMENT;
+        break;
+      default:
+        error("unrecognized postfix operator");
+        return null;
+    }
+
+    return new PostfixExpression(op, lhs);
+
+  }
+
+  private CallExpression parseCallExpression() {
+
+    final Identifier symbol = parseIdentifier();
 
     expect(TokenKind.PAREN_LEFT);
 
@@ -782,7 +839,25 @@ public class Parser {
 
     expect(TokenKind.PAREN_RIGHT);
 
-    final CallExpression node = new CallExpression(name, arguments);
+    final CallExpression node = new CallExpression(symbol, arguments);
+
+    return node;
+
+  }
+
+  private IndexExpression parseIndexExpression() {
+
+    final Identifier symbol = parseIdentifier();
+    final IndexExpression node = new IndexExpression(symbol);
+
+    expect(TokenKind.BRACKET_LEFT);
+
+    if (!match(TokenKind.PAREN_RIGHT)) {
+      final Expression index = parsePrimaryExpression();
+      node.setIndexExpression(index);
+    }
+
+    expect(TokenKind.BRACKET_RIGHT);
 
     return node;
 
@@ -797,8 +872,15 @@ public class Parser {
 
   private Identifier parseIdentifier() {
 
+    if (match(TokenKind.HASH)) {
+      accept();
+    }
+
     final Token token = expect(TokenKind.IDENTIFIER);
     final String lexeme = lexer.lexeme(token);
+
+    if (matchAny(TokenKind.DOLLAR, TokenKind.NOT))
+      accept();
 
     return new Identifier(lexeme);
 
@@ -901,7 +983,10 @@ public class Parser {
     final int line = token.line;
     final int column = token.column;
     final String msg = String.format("(%4d, %4d) %s", line, column, message);
-    System.err.println(msg);
+    for (final ParserListener listener : listeners) {
+      listener.error(new ParseError(line, column, msg));
+    }
+    accept();
   }
 
 

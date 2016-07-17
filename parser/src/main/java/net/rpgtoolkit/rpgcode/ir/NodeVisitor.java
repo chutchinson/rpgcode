@@ -45,5 +45,7 @@ public interface NodeVisitor {
   void visit(LogicalBinaryExpression node);
   void visit(BitwiseBinaryExpression node);
   void visit(AssignmentExpression node);
+  void visit(IndexExpression node);
+  void visit(PostfixExpression node);
 
 }

@@ -8,8 +8,8 @@
 package net.rpgtoolkit.rpgcode;
 
 /**
- * Enumeration of possible token types that can be derived
- * from a given input as a result of lexical analysis.
+ * Enumeration of possible token types that can be recognized
+ * as a result of lexical analysis.
  *
  * @author Chris Hutchinson
  */
@@ -57,6 +57,8 @@ public enum TokenKind {
 
   COMMA,
   COLON,
+  HASH,
+  DOLLAR,
   SEMICOLON,
   PAREN_LEFT,
   PAREN_RIGHT,
