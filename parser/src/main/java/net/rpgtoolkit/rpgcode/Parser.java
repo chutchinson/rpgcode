@@ -1,15 +1,15 @@
 /**
  * Copyright (c) 2015, rpgtoolkit.net <help@rpgtoolkit.net>
- *
+ * <p>
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 package net.rpgtoolkit.rpgcode;
 
-import net.rpgtoolkit.rpgcode.ir.*;
-import net.rpgtoolkit.rpgcode.ir.expressions.*;
-import net.rpgtoolkit.rpgcode.ir.statements.*;
+import net.rpgtoolkit.blade.ir.*;
+import net.rpgtoolkit.blade.ir.expressions.*;
+import net.rpgtoolkit.blade.ir.statements.*;
 
 import java.util.*;
 
@@ -21,6 +21,7 @@ public class Parser {
   private final Lexer lexer;
   private final LinkedList<Token> tokens;
   private final Set<ParserListener> listeners;
+  private final SourceLocationBuilder loc;
 
   public Parser(Lexer lexer) {
 
@@ -31,6 +32,7 @@ public class Parser {
     this.lexer = lexer;
     this.tokens = new LinkedList<>();
     this.listeners = new HashSet<>();
+    this.loc = new SourceLocationBuilder(this.lexer);
 
   }
 
@@ -45,12 +47,7 @@ public class Parser {
 
   public CompilationUnit parse() {
 
-    final CompilationUnit node = new CompilationUnit();
-    final FunctionDeclaration topLevelFn = new FunctionDeclaration(new Identifier("$_start"));
-    final Block topLevelFnBody = new Block();
-
-    topLevelFn.setBody(topLevelFnBody);
-    node.getFunctionDeclarations().add(topLevelFn);
+    final CompilationUnit node = new CompilationUnit(loc.newRange(), "???");
 
     while (!match(TokenKind.END)) {
 
@@ -63,21 +60,15 @@ public class Parser {
         final ClassDeclaration decl = parseClassDeclaration();
         if (decl != null)
           node.getClassDeclarations().add(decl);
-      }
-      else if (match(TokenKind.KEYWORD, Keywords.FUNCTION) || match(TokenKind.KEYWORD, Keywords.INLINE)) {
+      } else if (match(TokenKind.KEYWORD, Keywords.FUNCTION) || match(TokenKind.KEYWORD, Keywords.INLINE)) {
         final FunctionDeclaration decl = parseFunctionDeclaration();
         if (decl != null)
           node.getFunctionDeclarations().add(decl);
-      }
-      else if (matchAny(TokenKind.EOL, TokenKind.SEMICOLON)) {
+      } else if (matchAny(TokenKind.EOL, TokenKind.SEMICOLON)) {
         accept();
-      }
-      else {
+      } else {
         final Statement stmt = parseStatement();
-        if (stmt != null) {
-          topLevelFn.getBody().getStatements().add(stmt);
-        }
-        else {
+        if (stmt == null) {
           error("unexpected token in program body");
           accept();
         }
@@ -85,20 +76,26 @@ public class Parser {
 
     }
 
+    loc.end(node.getSourceRange());
+
     return node;
 
   }
 
   public ClassFieldDeclaration parseClassFieldDeclaration() {
 
+    final SourceRange range = loc.newRange();
+
     if (match(TokenKind.KEYWORD, Keywords.VAR)) {
       accept();
     }
 
     final Identifier name = parseIdentifier();
-    final ClassFieldDeclaration node = new ClassFieldDeclaration(name);
+    final ClassFieldDeclaration node = new ClassFieldDeclaration(range, name);
 
     expectEndofStatement();
+
+    loc.end(range);
 
     return node;
 
@@ -106,10 +103,12 @@ public class Parser {
 
   public ClassDeclaration parseClassDeclaration() {
 
+    final SourceRange range = loc.newRange();
+
     expect(TokenKind.KEYWORD, Keywords.CLASS);
 
     final Identifier name = parseIdentifier();
-    final ClassDeclaration node = new ClassDeclaration(name);
+    final ClassDeclaration node = new ClassDeclaration(range, name);
 
     // TODO: parse inheritance list
 
@@ -124,28 +123,23 @@ public class Parser {
 
       if (match(TokenKind.KEYWORD, Keywords.PUBLIC)) {
         currentVisibility = parseVisibilityLabel();
-      }
-      else if (match(TokenKind.KEYWORD, Keywords.PRIVATE)) {
+      } else if (match(TokenKind.KEYWORD, Keywords.PRIVATE)) {
         currentVisibility = parseVisibilityLabel();
-      }
-      else if (match(TokenKind.KEYWORD, Keywords.PROTECTED)) {
+      } else if (match(TokenKind.KEYWORD, Keywords.PROTECTED)) {
         currentVisibility = parseVisibilityLabel();
-      }
-      else if (match(TokenKind.KEYWORD, Keywords.FUNCTION) || match(TokenKind.KEYWORD, Keywords.INLINE)) {
+      } else if (match(TokenKind.KEYWORD, Keywords.FUNCTION) || match(TokenKind.KEYWORD, Keywords.INLINE)) {
         final FunctionDeclaration fn = parseFunctionDeclaration();
         if (fn != null) {
           fn.setVisibility(currentVisibility);
           node.getFunctionDeclarations().add(fn);
         }
-      }
-      else if (match(TokenKind.KEYWORD, Keywords.VAR) || match(TokenKind.IDENTIFIER)) {
+      } else if (match(TokenKind.KEYWORD, Keywords.VAR) || match(TokenKind.IDENTIFIER)) {
         final ClassFieldDeclaration field = parseClassFieldDeclaration();
         if (field != null) {
           field.setVisibility(currentVisibility);
           node.getFieldDeclarations().add(field);
         }
-      }
-      else {
+      } else {
         error("unexpected token in class declaration");
         accept();
       }
@@ -153,6 +147,8 @@ public class Parser {
     }
 
     expect(TokenKind.BRACE_RIGHT);
+
+    loc.end(range);
 
     return node;
 
@@ -190,6 +186,8 @@ public class Parser {
 
     boolean inline = false;
 
+    final SourceRange range = loc.newRange();
+
     if (match(TokenKind.KEYWORD, Keywords.INLINE)) {
       accept();
       inline = true;
@@ -198,7 +196,7 @@ public class Parser {
     expect(TokenKind.KEYWORD, Keywords.FUNCTION);
 
     final Identifier name = parseIdentifier();
-    final FunctionDeclaration node = new FunctionDeclaration(name);
+    final FunctionDeclaration node = new FunctionDeclaration(range, name);
 
     node.setIsInline(inline);
 
@@ -222,12 +220,13 @@ public class Parser {
       expect(TokenKind.NUMBER);
       expectEndofStatement();
       node.setIsAbstract(true);
-    }
-    else {
+    } else {
       skip();
       final Block block = parseBlock();
       node.setBody(block);
     }
+
+    loc.end(range);
 
     return node;
 
@@ -235,7 +234,8 @@ public class Parser {
 
   private Block parseBlock() {
 
-    final Block node = new Block();
+    final SourceRange range = loc.newRange();
+    final Block node = new Block(SourceRange.empty());
 
     expect(TokenKind.BRACE_LEFT);
 
@@ -247,14 +247,15 @@ public class Parser {
         final Statement stmt = parseStatement();
         if (stmt != null)
           node.getStatements().add(stmt);
-      }
-      else {
+      } else {
         break;
       }
 
     }
 
     expect(TokenKind.BRACE_RIGHT);
+
+    loc.end(range);
 
     return node;
 
@@ -277,30 +278,39 @@ public class Parser {
 
     if (match(TokenKind.KEYWORD, Keywords.RETURN)) {
       return parseReturnStatement();
-    }
-    else if (match(TokenKind.KEYWORD, Keywords.IF)) {
+    } else if (match(TokenKind.KEYWORD, Keywords.IF)) {
       return parseConditionalStatement();
-    }
-    else if (match(TokenKind.KEYWORD, Keywords.DO)) {
+    } else if (match(TokenKind.KEYWORD, Keywords.DO)) {
       return parseDoWhileStatement();
-    }
-    else if (match(TokenKind.KEYWORD, Keywords.WHILE)) {
+    } else if (match(TokenKind.KEYWORD, Keywords.WHILE)) {
       return parseWhileStatement();
-    }
-    else if (match(TokenKind.KEYWORD, Keywords.UNTIL)) {
+    } else if (match(TokenKind.KEYWORD, Keywords.UNTIL)) {
       return parseUntilStatement();
-    }
-    else if (match(TokenKind.KEYWORD, Keywords.FOR)) {
+    } else if (match(TokenKind.KEYWORD, Keywords.FOR)) {
       return parseForStatement();
-    }
-    else if (matchAll(TokenKind.IDENTIFIER, TokenKind.COLON)) {
+    } else if (matchAll(TokenKind.IDENTIFIER, TokenKind.COLON)) {
       return parseLabelStatement();
+    } else {
+      return parseExpressionStatement();
     }
-    else {
-      final Expression expr = parseExpression();
-      expectEndofStatement();
-      return new ExpressionStatement(expr);
+
+  }
+
+  public ExpressionStatement parseExpressionStatement() {
+
+    final SourceRange range = loc.newRange();
+    final Expression expr = parseExpression();
+
+    if (expr == null) {
+      error("expected expression");
+      return null;
     }
+
+    expectEndofStatement();
+
+    loc.end(range);
+
+    return new ExpressionStatement(range, expr);
 
   }
 
@@ -309,6 +319,8 @@ public class Parser {
     Expression initial = null;
     Expression condition = null;
     Expression post = null;
+
+    final SourceRange range = loc.newRange();
 
     expect(TokenKind.KEYWORD, Keywords.FOR);
     expect(TokenKind.PAREN_LEFT);
@@ -333,12 +345,14 @@ public class Parser {
     skip();
 
     final Block body = parseBlock();
-    final ForLoopStatement node = new ForLoopStatement();
+    final ForLoopStatement node = new ForLoopStatement(range);
 
     node.setInitialExpression(initial);
     node.setConditionExpression(condition);
     node.setIteratorExpression(post);
     node.setBody(body);
+
+    loc.end(range);
 
     return node;
 
@@ -346,11 +360,15 @@ public class Parser {
 
   public LabelStatement parseLabelStatement() {
 
+    final SourceRange range = loc.newRange();
+
     final Identifier name = parseIdentifier();
-    final LabelStatement node = new LabelStatement(name);
+    final LabelStatement node = new LabelStatement(range, name);
 
     expect(TokenKind.COLON);
     expectEndofStatement();
+
+    loc.end(range);
 
     return node;
 
@@ -360,6 +378,8 @@ public class Parser {
 
     // TODO: for statement body parse block or single statement
 
+    final SourceRange range = loc.newRange();
+
     expect(TokenKind.KEYWORD, Keywords.UNTIL);
     expect(TokenKind.PAREN_LEFT);
 
@@ -368,16 +388,20 @@ public class Parser {
     expect(TokenKind.PAREN_RIGHT);
     skip();
 
-    final LoopStatement node = new LoopStatement(LoopStatement.LoopKind.UNTIL, condition);
+    final LoopStatement node = new LoopStatement(range, LoopStatement.LoopKind.UNTIL, condition);
     final Block body = parseBlock();
 
     node.setBody(body);
+
+    loc.end(range);
 
     return node;
 
   }
 
   public LoopStatement parseWhileStatement() {
+
+    final SourceRange range = loc.newRange();
 
     // TODO: for statement body parse block or single statement
 
@@ -389,16 +413,20 @@ public class Parser {
     expect(TokenKind.PAREN_RIGHT);
     skip();
 
-    final LoopStatement node = new LoopStatement(LoopStatement.LoopKind.WHILE, condition);
+    final LoopStatement node = new LoopStatement(range, LoopStatement.LoopKind.WHILE, condition);
     final Block body = parseBlock();
 
     node.setBody(body);
+
+    loc.end(range);
 
     return node;
 
   }
 
   public LoopStatement parseDoWhileStatement() {
+
+    final SourceRange range = loc.newRange();
 
     // TODO: for statement body parse block or single statement
 
@@ -416,15 +444,19 @@ public class Parser {
     expect(TokenKind.PAREN_RIGHT);
     expectEndofStatement();
 
-    final LoopStatement node = new LoopStatement(LoopStatement.LoopKind.DO, condition);
+    final LoopStatement node = new LoopStatement(range, LoopStatement.LoopKind.DO, condition);
 
     node.setBody(body);
+
+    loc.end(range);
 
     return node;
 
   }
 
   public ConditionalStatement parseConditionalStatement() {
+
+    final SourceRange range = loc.newRange();
 
     // TODO: for statement body parse block or single statement
 
@@ -437,7 +469,7 @@ public class Parser {
     skip();
 
     final Block body = parseBlock();
-    final ConditionalStatement node = new ConditionalStatement(condition, body);
+    final ConditionalStatement node = new ConditionalStatement(range, condition, body);
 
     skip();
 
@@ -456,15 +488,19 @@ public class Parser {
       parseBlock(); // TODO: add else body to node
     }
 
+    loc.end(range);
+
     return node;
 
   }
 
   public ReturnStatement parseReturnStatement() {
 
+    final SourceRange range = loc.newRange();
+
     expect(TokenKind.KEYWORD, Keywords.RETURN);
 
-    final ReturnStatement node = new ReturnStatement();
+    final ReturnStatement node = new ReturnStatement(range);
 
     if (!matchAny(TokenKind.EOL, TokenKind.SEMICOLON)) {
       final Expression rhs = parseExpression();
@@ -472,6 +508,8 @@ public class Parser {
     }
 
     expectEndofStatement();
+
+    loc.end(range);
 
     return node;
 
@@ -495,11 +533,12 @@ public class Parser {
       return parseNegationExpression();
     }
 
+    final SourceRange range = loc.newRange();
     final Token token = accept();
     final UnaryExpression.Operator op;
 
     switch (token.kind) {
-      case PLUS :
+      case PLUS:
         op = UnaryExpression.Operator.POSITIVE;
         break;
       case MINUS:
@@ -512,12 +551,15 @@ public class Parser {
 
     final Expression expr = parseUnaryExpression();
 
-    return new UnaryExpression(op, expr);
+    loc.end(range);
+
+    return new UnaryExpression(range, op, expr);
 
   }
 
   public Expression parseMultiplicativeExpression() {
 
+    final SourceRange range = loc.newRange();
     final Expression lhs = parseUnaryExpression();
 
     if (!matchAny(TokenKind.MULTIPLY, TokenKind.DIVIDE, TokenKind.MODULUS)) {
@@ -544,12 +586,15 @@ public class Parser {
 
     final Expression rhs = parseMultiplicativeExpression();
 
-    return new MultiplicativeBinaryExpression(op, lhs, rhs);
+    loc.end(range);
+
+    return new MultiplicativeBinaryExpression(range, op, lhs, rhs);
 
   }
 
   public Expression parseAdditiveExpression() {
 
+    final SourceRange range = loc.newRange();
     final Expression lhs = parseMultiplicativeExpression();
 
     if (!matchAny(TokenKind.PLUS, TokenKind.MINUS)) {
@@ -573,12 +618,15 @@ public class Parser {
 
     final Expression rhs = parseAdditiveExpression();
 
-    return new AdditiveBinaryExpression(op, lhs, rhs);
+    loc.end(range);
+
+    return new AdditiveBinaryExpression(range, op, lhs, rhs);
 
   }
 
   public Expression parseShiftExpression() {
 
+    final SourceRange range = loc.newRange();
     final Expression lhs = parseAdditiveExpression();
 
     if (!matchAny(TokenKind.SHIFT_LEFT, TokenKind.SHIFT_RIGHT)) {
@@ -602,18 +650,21 @@ public class Parser {
 
     final Expression rhs = parseShiftExpression();
 
-    return new ShiftBinaryExpression(op, lhs, rhs);
+    loc.end(range);
+
+    return new ShiftBinaryExpression(range, op, lhs, rhs);
 
   }
 
   public Expression parseRelationalExpression() {
 
+    final SourceRange range = loc.newRange();
     final Expression lhs = parseShiftExpression();
 
     if (!matchAny(
-            TokenKind.EQUALS, TokenKind.NOT_EQUALS,
-            TokenKind.GREATER_THAN, TokenKind.GREATER_THAN_OR_EQUAL_TO,
-            TokenKind.LESS_THAN, TokenKind.LESS_THAN_OR_EQUAL_TO)) {
+        TokenKind.EQUALS, TokenKind.NOT_EQUALS,
+        TokenKind.GREATER_THAN, TokenKind.GREATER_THAN_OR_EQUAL_TO,
+        TokenKind.LESS_THAN, TokenKind.LESS_THAN_OR_EQUAL_TO)) {
       return lhs;
     }
 
@@ -646,12 +697,15 @@ public class Parser {
 
     final Expression rhs = parseRelationalExpression();
 
-    return new RelationalBinaryExpression(op, lhs, rhs);
+    loc.end(range);
+
+    return new RelationalBinaryExpression(range, op, lhs, rhs);
 
   }
 
   public Expression parseLogicalExpression() {
 
+    final SourceRange range = loc.newRange();
     final Expression lhs = parseRelationalExpression();
 
     if (!matchAny(TokenKind.AND_LOGICAL, TokenKind.OR_LOGICAL)) {
@@ -675,19 +729,22 @@ public class Parser {
 
     final Expression rhs = parseLogicalExpression();
 
-    return new LogicalBinaryExpression(op, lhs, rhs);
+    loc.end(range);
+
+    return new LogicalBinaryExpression(range, op, lhs, rhs);
 
   }
 
   public Expression parseAssignmentExpression() {
 
+    final SourceRange range = loc.newRange();
     final Expression lhs = parseLogicalExpression();
 
     if (!matchAny(
-            TokenKind.ASSIGN, TokenKind.ASSIGN_PLUS, TokenKind.ASSIGN_MINUS,
-            TokenKind.ASSIGN_MULTIPLY, TokenKind.ASSIGN_DIVIDE, TokenKind.ASSIGN_MODULUS,
-            TokenKind.ASSIGN_SHIFT_LEFT, TokenKind.ASSIGN_SHIFT_RIGHT,
-            TokenKind.ASSIGN_POW, TokenKind.ASSIGN_AND, TokenKind.ASSIGN_OR, TokenKind.ASSIGN_XOR)) {
+        TokenKind.ASSIGN, TokenKind.ASSIGN_PLUS, TokenKind.ASSIGN_MINUS,
+        TokenKind.ASSIGN_MULTIPLY, TokenKind.ASSIGN_DIVIDE, TokenKind.ASSIGN_MODULUS,
+        TokenKind.ASSIGN_SHIFT_LEFT, TokenKind.ASSIGN_SHIFT_RIGHT,
+        TokenKind.ASSIGN_POW, TokenKind.ASSIGN_AND, TokenKind.ASSIGN_OR, TokenKind.ASSIGN_XOR)) {
       return lhs;
     }
 
@@ -735,7 +792,9 @@ public class Parser {
 
     final Expression rhs = parseAssignmentExpression();
 
-    return new AssignmentExpression(op, lhs, rhs);
+    loc.end(range);
+
+    return new AssignmentExpression(range, op, lhs, rhs);
 
   }
 
@@ -748,41 +807,41 @@ public class Parser {
       return expr;
     }
 
+    final SourceRange range = loc.newRange();
+
     if (match(TokenKind.KEYWORD, Keywords.TRUE)) {
       accept();
-      return new ConstantBooleanExpression(true);
+      loc.end(range);
+      return new ConstantBooleanExpression(range, true);
     }
 
     if (match(TokenKind.KEYWORD, Keywords.FALSE)) {
       accept();
-      return new ConstantBooleanExpression(false);
+      loc.end(range);
+      return new ConstantBooleanExpression(range, false);
     }
 
     if (match(TokenKind.STRING)) {
       final Token token = accept();
-      return new ConstantStringExpression(lexer.lexeme(token));
+      loc.end(range);
+      return new ConstantStringExpression(range, lexer.lexeme(token));
     }
 
     if (match(TokenKind.NUMBER)) {
       final Token token = accept();
-      final String lexeme = lexer.lexeme(token);
-      return new ConstantNumberExpression(
-              Double.parseDouble(lexer.lexeme(token)));
+      loc.end(range);
+      return new ConstantNumberExpression(range, Double.parseDouble(lexer.lexeme(token)));
     }
 
     if (matchAll(TokenKind.IDENTIFIER, TokenKind.PAREN_LEFT)) {
       return parseCallExpression();
-    }
-    else if (matchAll(TokenKind.IDENTIFIER, TokenKind.BRACKET_LEFT)) {
+    } else if (matchAll(TokenKind.IDENTIFIER, TokenKind.BRACKET_LEFT)) {
       return parseIndexExpression();
-    }
-    else if (matchAll(TokenKind.IDENTIFIER, TokenKind.INCREMENT)) {
+    } else if (matchAll(TokenKind.IDENTIFIER, TokenKind.INCREMENT)) {
       return parsePostfixExpression();
-    }
-    else if (matchAll(TokenKind.IDENTIFIER, TokenKind.DECREMENT)) {
+    } else if (matchAll(TokenKind.IDENTIFIER, TokenKind.DECREMENT)) {
       return parsePostfixExpression();
-    }
-    else if (match(TokenKind.IDENTIFIER)) {
+    } else if (match(TokenKind.IDENTIFIER)) {
       return parseIdentifier();
     }
 
@@ -793,6 +852,7 @@ public class Parser {
 
   private Expression parsePostfixExpression() {
 
+    final SourceRange range = loc.newRange();
     final Identifier lhs = parseIdentifier();
 
     if (!matchAny(TokenKind.INCREMENT, TokenKind.DECREMENT)) {
@@ -814,12 +874,15 @@ public class Parser {
         return null;
     }
 
-    return new PostfixExpression(op, lhs);
+    loc.end(range);
+
+    return new PostfixExpression(range, op, lhs);
 
   }
 
   private CallExpression parseCallExpression() {
 
+    final SourceRange range = loc.newRange();
     final Identifier symbol = parseIdentifier();
 
     expect(TokenKind.PAREN_LEFT);
@@ -839,7 +902,9 @@ public class Parser {
 
     expect(TokenKind.PAREN_RIGHT);
 
-    final CallExpression node = new CallExpression(symbol, arguments);
+    loc.end(range);
+
+    final CallExpression node = new CallExpression(range, symbol, arguments);
 
     return node;
 
@@ -847,8 +912,9 @@ public class Parser {
 
   private IndexExpression parseIndexExpression() {
 
+    final SourceRange range = loc.newRange();
     final Identifier symbol = parseIdentifier();
-    final IndexExpression node = new IndexExpression(symbol);
+    final IndexExpression node = new IndexExpression(range, symbol);
 
     expect(TokenKind.BRACKET_LEFT);
 
@@ -859,18 +925,26 @@ public class Parser {
 
     expect(TokenKind.BRACKET_RIGHT);
 
+    loc.end(range);
+
     return node;
 
   }
 
   private Parameter parseParameter() {
 
+    final SourceRange range = loc.newRange();
     final Identifier name = parseIdentifier();
-    return new Parameter(name);
+
+    loc.end(range);
+
+    return new Parameter(range, name);
 
   }
 
   private Identifier parseIdentifier() {
+
+    final SourceRange range = loc.newRange();
 
     if (match(TokenKind.HASH)) {
       accept();
@@ -882,7 +956,9 @@ public class Parser {
     if (matchAny(TokenKind.DOLLAR, TokenKind.NOT))
       accept();
 
-    return new Identifier(lexeme);
+    loc.end(range);
+
+    return new Identifier(range, lexeme);
 
   }
 
@@ -927,8 +1003,7 @@ public class Parser {
       final Token current = tokens.getFirst();
       accept();
       return current;
-    }
-    else {
+    } else {
       final Token current = tokens.getFirst();
       error(String.format("expected %s, found %s", kind, current.kind));
       return current;

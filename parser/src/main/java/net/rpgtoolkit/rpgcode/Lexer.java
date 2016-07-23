@@ -62,6 +62,10 @@ public class Lexer {
     this.keywords.put("or", Keywords.OR);
   }
 
+  public LexerContext getContext() {
+    return this.context;
+  }
+
   public String lexeme(Token token) {
     return this.input.substring(token.offset, token.offset + token.length);
   }
