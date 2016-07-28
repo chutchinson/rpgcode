@@ -24,6 +24,7 @@ public enum TokenKind {
   MINUS,
   MULTIPLY,
   DIVIDE,
+  DIVIDE_INT,
   MODULUS,
   POW,
   INCREMENT,

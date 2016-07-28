@@ -60,6 +60,11 @@ public class Lexer {
     this.keywords.put("inline", Keywords.INLINE);
     this.keywords.put("and", Keywords.AND);
     this.keywords.put("or", Keywords.OR);
+    this.keywords.put("this", Keywords.THIS);
+    this.keywords.put("on", Keywords.ON);
+    this.keywords.put("error", Keywords.ERROR);
+    this.keywords.put("resume", Keywords.RESUME);
+    this.keywords.put("next", Keywords.NEXT);
   }
 
   public LexerContext getContext() {
@@ -294,6 +299,10 @@ public class Lexer {
             token.kind = TokenKind.DIVIDE;
             break;
         }
+        break;
+      case '\\':
+        accept();
+        token.kind = TokenKind.DIVIDE_INT;
         break;
       case '%':
         accept();

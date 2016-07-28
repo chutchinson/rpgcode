@@ -30,5 +30,10 @@ public class Keywords {
     public static final int INLINE = 26;
     public static final int AND = 27;
     public static final int OR = 28;
+    public static final int THIS = 29;
+    public static final int ON = 30;
+    public static final int ERROR = 31;
+    public static final int RESUME = 32;
+    public static final int NEXT = 33;
 
 }

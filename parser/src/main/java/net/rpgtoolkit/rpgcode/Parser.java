@@ -158,21 +158,21 @@ public class Parser {
 
     Visibility result;
 
-    final Token token = expect(TokenKind.KEYWORD);
-
-    switch (token.tag) {
-      case Keywords.PUBLIC:
-        result = Visibility.PUBLIC;
-        break;
-      case Keywords.PRIVATE:
-        result = Visibility.PRIVATE;
-        break;
-      case Keywords.PROTECTED:
-        result = Visibility.PROTECTED;
-        break;
-      default:
-        error("unrecognized visibility label");
-        return Visibility.PRIVATE;
+    if (match(TokenKind.KEYWORD, Keywords.PUBLIC)) {
+      accept();
+      result = Visibility.PUBLIC;
+    }
+    else if (match(TokenKind.KEYWORD, Keywords.PRIVATE)) {
+      accept();
+      result = Visibility.PRIVATE;
+    }
+    else if (match(TokenKind.KEYWORD, Keywords.PROTECTED)) {
+      accept();
+      result = Visibility.PROTECTED;
+    }
+    else {
+      error("unrecognized visibility");
+      result = Visibility.PRIVATE;
     }
 
     expect(TokenKind.COLON);
@@ -236,6 +236,7 @@ public class Parser {
 
     final SourceRange range = loc.newRange();
     final Block node = new Block(SourceRange.empty());
+    final NodeCollection<Statement> statements = node.getStatements();
 
     expect(TokenKind.BRACE_LEFT);
 
@@ -245,8 +246,7 @@ public class Parser {
 
       if (!matchAny(TokenKind.BRACE_RIGHT, TokenKind.END)) {
         final Statement stmt = parseStatement();
-        if (stmt != null)
-          node.getStatements().add(stmt);
+        statements.add(stmt);
       } else {
         break;
       }
@@ -290,9 +290,59 @@ public class Parser {
       return parseForStatement();
     } else if (matchAll(TokenKind.IDENTIFIER, TokenKind.COLON)) {
       return parseLabelStatement();
+    } else if (match(TokenKind.KEYWORD, Keywords.BREAK)) {
+      return parseBreakStatement();
+    } else if (match(TokenKind.KEYWORD, Keywords.CONTINUE)) {
+      return parseContinueStatement();
+    } else if (match(TokenKind.KEYWORD, Keywords.ON)) {
+      return parseErrorHandlerStatement();
     } else {
       return parseExpressionStatement();
     }
+
+  }
+
+  public FlowControlStatement parseContinueStatement() {
+
+    final SourceRange range = loc.newRange();
+
+    expect(TokenKind.KEYWORD, Keywords.CONTINUE);
+    expectEndofStatement();
+
+    loc.end(range);
+
+    return new FlowControlStatement(
+        range, FlowControlStatement.FlowControlKind.CONTINUE);
+
+  }
+
+  public FlowControlStatement parseBreakStatement() {
+
+    final SourceRange range = loc.newRange();
+
+    expect(TokenKind.KEYWORD, Keywords.BREAK);
+    expectEndofStatement();
+
+    loc.end(range);
+
+    return new FlowControlStatement(
+        range, FlowControlStatement.FlowControlKind.BREAK);
+
+  }
+
+  public ErrorHandlerStatement parseErrorHandlerStatement() {
+
+    final SourceRange range = loc.newRange();
+
+    expect(TokenKind.KEYWORD, Keywords.ON);
+    expect(TokenKind.KEYWORD, Keywords.ERROR);
+    expect(TokenKind.KEYWORD, Keywords.RESUME);
+    expect(TokenKind.KEYWORD, Keywords.NEXT);
+
+    loc.end(range);
+
+    return new ErrorHandlerStatement(
+        range, ErrorHandlerStatement.ErrorHandlerKind.RESUME);
 
   }
 
@@ -562,7 +612,7 @@ public class Parser {
     final SourceRange range = loc.newRange();
     final Expression lhs = parseUnaryExpression();
 
-    if (!matchAny(TokenKind.MULTIPLY, TokenKind.DIVIDE, TokenKind.MODULUS)) {
+    if (!matchAny(TokenKind.MULTIPLY, TokenKind.DIVIDE, TokenKind.DIVIDE_INT, TokenKind.MODULUS)) {
       return lhs;
     }
 
@@ -575,6 +625,9 @@ public class Parser {
         break;
       case DIVIDE:
         op = MultiplicativeBinaryExpression.Operator.DIVIDE;
+        break;
+      case DIVIDE_INT:
+        op = MultiplicativeBinaryExpression.Operator.DIVIDE_INT;
         break;
       case MODULUS:
         op = MultiplicativeBinaryExpression.Operator.MODULUS;
@@ -918,12 +971,18 @@ public class Parser {
 
     expect(TokenKind.BRACKET_LEFT);
 
-    if (!match(TokenKind.PAREN_RIGHT)) {
+    if (!match(TokenKind.BRACKET_RIGHT)) {
       final Expression index = parsePrimaryExpression();
       node.setIndexExpression(index);
     }
 
     expect(TokenKind.BRACKET_RIGHT);
+
+    // skip type hint
+
+    if (matchAny(TokenKind.DOLLAR, TokenKind.NOT)) {
+      accept();
+    }
 
     loc.end(range);
 
@@ -1000,9 +1059,7 @@ public class Parser {
   private Token expect(TokenKind kind, int tag) {
 
     if (match(kind, tag)) {
-      final Token current = tokens.getFirst();
-      accept();
-      return current;
+      return accept();
     } else {
       final Token current = tokens.getFirst();
       error(String.format("expected %s, found %s", kind, current.kind));

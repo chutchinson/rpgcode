@@ -11,7 +11,7 @@ public class SourceLocationBuilder {
   private SourceLocation end;
 
   public SourceLocationBuilder(Lexer lexer) {
-    if (lexer != null)
+    if (lexer == null)
       throw new IllegalArgumentException();
     this.lexer = lexer;
     this.ctx = lexer.getContext();
